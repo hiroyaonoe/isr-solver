@@ -1,18 +1,28 @@
+import sys
 import argparse
-from typing import Set, Tuple
+from typing import Set, List, Tuple
 import numpy as np
 
-LIMIT = 5
+sys.setrecursionlimit(20000000)
+
+REV_LIMIT = 0
+DIST_LIMIT = 1<<32
 
 def main():
 	col, dat = parse_args()
 	graph = read_col(col)
 	start, end = read_dat(dat)
-	setup(graph, start)
+	memo = setup(graph, start)
 	print(graph)
-	print(end)
-	ans = solve(graph, end, 0)
-	print(ans)
+	print("s:", start)
+	print("t:", end)
+	ans = solve(graph, end, 0, memo)
+	if len(ans) == 0:
+		print("NO")
+	else:
+		print("YES")
+		for i in range(len(ans)):
+			print(i+1, ":", ans[-i])
 
 def parse_args() -> Tuple[str, str]:
 	p = argparse.ArgumentParser()
@@ -53,18 +63,19 @@ def read_dat(name: str) -> Tuple[Set, Set]:
 			end = es
 	return start, end
 
-def setup(graph: np.ndarray, start: Set):
+def setup(graph: np.ndarray, start: Set) -> np.ndarray:
 	for i in start:
 		put(graph, i)
+	memo = graph.copy()
+	memo[:, :] = 0
+	return memo
 
-def solve(graph: np.ndarray, end: Set, limit: int) -> Tuple:
-	if limit > LIMIT:
-		print("-2: ", graph, [])
+def solve(graph: np.ndarray, end: Set, limit: int, memo: np.ndarray) -> List:
+	if limit > DIST_LIMIT:
 		return []
 	dist = distance(graph, end)
 	if dist == 0:
 		ret = [get_ids(graph)]
-		print("-1: ", graph, ret)
 		return ret
 	
 	for j, l in enumerate(graph[1:]):
@@ -72,18 +83,17 @@ def solve(graph: np.ndarray, end: Set, limit: int) -> Tuple:
 		if len(two_index) == 0:
 			ids = get_ids(graph)
 			for i in ids:
-				ret = move_and_solve(graph, i, j+1, end, dist, limit)
+				ret = move_and_solve(graph, i, j+1, end, dist, limit, memo)
 				if len(ret) > 0:
-					print("0: ", graph, ret)
+					ret.append(get_ids(graph))
 					return ret
 
 		if len(two_index) == 1:
 			i = two_index[0]
-			ret = move_and_solve(graph, i, j+1, end, dist, limit)
+			ret = move_and_solve(graph, i, j+1, end, dist, limit, memo)
 			if len(ret) > 0:
-				print("1: ", graph, ret)
+				ret.append(get_ids(graph))
 				return ret
-
 	return []
 
 
@@ -115,15 +125,20 @@ def move(graph: np.ndarray, i: int, j: int) -> np.ndarray:
 	remove(graph, i)
 	put(graph, j)
 
-def move_and_solve(graph: np.ndarray, i: int, j: int, end: Set, dist: int, limit: int) -> Tuple:
+def move_and_solve(graph: np.ndarray, i: int, j: int, end: Set, dist: int, limit: int, memo: np.ndarray) -> List:
+	if memo[i, j] > REV_LIMIT:
+		return []
+	new_memo = memo.copy()
+	new_memo[i, j] = +2
+	new_memo[j, i] = +1
 	new_graph = graph.copy()
 	move(new_graph, i, j)
 	if distance(new_graph, end) < dist:
-		return solve(new_graph, end, limit)
+		return solve(new_graph, end, limit, new_memo)
 	if distance(new_graph, end) == dist:
-		return solve(new_graph, end, limit+1)
+		return solve(new_graph, end, limit+1, new_memo)
 	if distance(new_graph, end) > dist:
-		return solve(new_graph, end, limit+2)
+		return solve(new_graph, end, limit+2, new_memo)
 	return []
 
 if __name__ == "__main__":
