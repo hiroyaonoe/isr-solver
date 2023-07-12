@@ -39,6 +39,8 @@ def read_col(name: str) -> np.ndarray:
 	for line in lines:
 		ls = line.split()
 		op = ls[0]
+		if op not in ('p', 'e'):
+			continue
 		one = int(ls[1])
 		two = int(ls[2])
 		if op == 'p':
